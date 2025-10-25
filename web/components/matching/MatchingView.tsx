@@ -323,14 +323,15 @@ export function MatchingView() {
                                 <RiEyeLine className='h-4 w-4' />
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className='sm:max-w-3xl max-h-[90vh] overflow-y-auto'>
+                            <DialogContent className='sm:max-w-4xl max-h-[90vh] overflow-y-auto'>
                               <DialogHeader>
                                 <DialogTitle className='flex items-center gap-2'>
                                   <RiFileList3Line className='h-5 w-5' />
                                   Matching Details
                                 </DialogTitle>
                                 <DialogDescription>
-                                  Detailed 3-way comparison between PO, BOL, and Invoice
+                                  Detailed 3-way comparison between PO, BOL, and
+                                  Invoice
                                 </DialogDescription>
                               </DialogHeader>
 
@@ -464,10 +465,13 @@ export function MatchingView() {
                                                 Description
                                               </th>
                                               <th className='text-right py-2 px-3 font-medium'>
-                                                PO Amount
+                                                PO Value
                                               </th>
                                               <th className='text-right py-2 px-3 font-medium'>
-                                                Invoice Amount
+                                                BOL Value
+                                              </th>
+                                              <th className='text-right py-2 px-3 font-medium'>
+                                                Invoice Value
                                               </th>
                                               <th className='text-center py-2 px-3 font-medium'>
                                                 Status
@@ -490,6 +494,11 @@ export function MatchingView() {
                                                       : '-'}
                                                   </td>
                                                   <td className='py-2 px-3 text-right font-mono'>
+                                                    {charge.bol_amount !== null
+                                                      ? `${charge.bol_amount}`
+                                                      : '-'}
+                                                  </td>
+                                                  <td className='py-2 px-3 text-right font-mono'>
                                                     {charge.invoice_amount !==
                                                     null
                                                       ? `${charge.invoice_amount}`
@@ -505,6 +514,9 @@ export function MatchingView() {
                                                           : charge.status ===
                                                             'variance'
                                                           ? 'bg-yellow-100 text-yellow-800'
+                                                          : charge.status ===
+                                                            'missing'
+                                                          ? 'bg-orange-100 text-orange-800'
                                                           : 'bg-red-100 text-red-800'
                                                       }
                                                     >
