@@ -47,15 +47,10 @@ export const matchingResultsTable = pgTable('matching_results', {
   flags_count: real('flags_count').default(0),
   high_severity_flags: real('high_severity_flags').default(0),
 
-  // Job tracking (Daytona)
-  daytona_job_id: text('daytona_job_id'),
-  daytona_logs_url: text('daytona_logs_url'),
-
   // Timestamps
   created_at: timestamp('created_at', { mode: 'string' })
     .defaultNow()
     .notNull(),
 });
 
-export type MatchingResult = typeof matchingResultsTable.$inferSelect;
-export type NewMatchingResult = typeof matchingResultsTable.$inferInsert;
+export type MatchingResultEntity = typeof matchingResultsTable.$inferSelect;

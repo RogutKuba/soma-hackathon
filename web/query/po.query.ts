@@ -35,7 +35,14 @@ export interface PurchaseOrder {
   status: 'pending' | 'bol_received' | 'invoiced' | 'matched' | 'disputed';
   created_at: string;
   updated_at: string;
-  file_id: string;  // Now required
+  file_id: string;
+  file: {
+    id: string;
+    filename: string;
+    url: string;
+    mime_type: string;
+    size_bytes: number;
+  } | null;
 }
 
 interface CreatePurchaseOrderResponse {

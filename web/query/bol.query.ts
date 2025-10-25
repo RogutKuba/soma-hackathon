@@ -74,6 +74,13 @@ export interface BillOfLading {
   status: 'pending' | 'delivered' | 'invoiced' | 'matched';
   created_at: string;
   updated_at: string;
+  file: {
+    id: string;
+    filename: string;
+    url: string;
+    mime_type: string;
+    size_bytes: number;
+  } | null;
 }
 
 interface CreateBillOfLadingResponse {

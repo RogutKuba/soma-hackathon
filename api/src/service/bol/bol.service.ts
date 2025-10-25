@@ -1,7 +1,11 @@
 import { Elysia, t } from 'elysia';
 import { generateId, type Id } from '@/lib/id';
 import { db } from '@/db/client';
-import { billsOfLadingTable, type NewBillOfLading } from '@/db/schema/bol.db';
+import {
+  billsOfLadingTable,
+  type BillOfLadingEntity,
+} from '@/db/schema/bol.db';
+import { filesTable } from '@/db/schema/files.db';
 import { eq } from 'drizzle-orm';
 
 export class BOLService {
@@ -24,11 +28,11 @@ export class BOLService {
     pod_file_id?: string;
     pod_signed_at?: string;
   }) {
-    const bolId = generateId('bol');
-
     // Create BOL record
-    const newBOL: NewBillOfLading = {
-      id: bolId,
+    const newBOL: BillOfLadingEntity = {
+      id: generateId('bol'),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       bol_number: data.bol_number,
       po_number: data.po_number,
       po_id: data.po_id ? (data.po_id as Id<'po'>) : null,
@@ -109,13 +113,42 @@ export class BOLService {
   }
 
   /**
-   * Gets all BOLs with optional filtering
+   * Gets all BOLs with file information and optional filtering
    */
   static async getAllBOLs(filters?: {
     status?: 'pending' | 'delivered' | 'invoiced' | 'matched';
     carrier_name?: string;
   }) {
-    let query = db.select().from(billsOfLadingTable);
+    let query = db
+      .select({
+        id: billsOfLadingTable.id,
+        bol_number: billsOfLadingTable.bol_number,
+        po_number: billsOfLadingTable.po_number,
+        po_id: billsOfLadingTable.po_id,
+        carrier_name: billsOfLadingTable.carrier_name,
+        origin: billsOfLadingTable.origin,
+        destination: billsOfLadingTable.destination,
+        pickup_date: billsOfLadingTable.pickup_date,
+        delivery_date: billsOfLadingTable.delivery_date,
+        weight_lbs: billsOfLadingTable.weight_lbs,
+        item_description: billsOfLadingTable.item_description,
+        actual_charges: billsOfLadingTable.actual_charges,
+        file_id: billsOfLadingTable.file_id,
+        pod_file_id: billsOfLadingTable.pod_file_id,
+        pod_signed_at: billsOfLadingTable.pod_signed_at,
+        status: billsOfLadingTable.status,
+        created_at: billsOfLadingTable.created_at,
+        updated_at: billsOfLadingTable.updated_at,
+        file: {
+          id: filesTable.id,
+          filename: filesTable.filename,
+          url: filesTable.url,
+          mime_type: filesTable.mime_type,
+          size_bytes: filesTable.size_bytes,
+        },
+      })
+      .from(billsOfLadingTable)
+      .leftJoin(filesTable, eq(billsOfLadingTable.file_id, filesTable.id));
 
     if (filters?.status) {
       query = query.where(eq(billsOfLadingTable.status, filters.status)) as any;

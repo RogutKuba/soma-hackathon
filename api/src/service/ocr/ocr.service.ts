@@ -73,6 +73,47 @@ export type BOLOCRResult = {
   file: FileEntity;
 };
 
+// Schema for extracted invoice data
+const invoiceSchema = z.object({
+  invoice_number: z.string().describe('Invoice number'),
+  carrier_name: z.string().describe('Carrier/trucking company name'),
+  invoice_date: z.string().describe('Invoice date in ISO format (YYYY-MM-DD)'),
+  po_number: z
+    .string()
+    .optional()
+    .describe('Purchase order number reference (if present)'),
+  bol_number: z
+    .string()
+    .optional()
+    .describe('Bill of lading number reference (if present)'),
+  charges: z
+    .array(
+      z.object({
+        description: z
+          .string()
+          .describe('Charge description (e.g., "Linehaul", "Fuel Surcharge")'),
+        amount: z.number().describe('Charge amount in dollars'),
+      })
+    )
+    .describe('List of charges from the invoice'),
+  total_amount: z.number().describe('Total invoice amount'),
+  payment_terms: z
+    .string()
+    .optional()
+    .describe('Payment terms (e.g., "NET 30")'),
+  due_date: z
+    .string()
+    .optional()
+    .describe('Payment due date in ISO format (YYYY-MM-DD)'),
+});
+
+export type ExtractedInvoiceData = z.infer<typeof invoiceSchema>;
+
+export type InvoiceOCRResult = {
+  data: ExtractedInvoiceData;
+  file: FileEntity;
+};
+
 export abstract class OCRService {
   /**
    * Performs OCR on PDF using Mistral OCR API
@@ -220,6 +261,61 @@ Extract the data accurately and structure it according to the schema.`,
       file: savedFile,
     };
   }
+
+  /**
+   * Parses invoice text using AI to extract structured data
+   */
+  private static async parseInvoiceText(
+    text: string
+  ): Promise<ExtractedInvoiceData> {
+    const result = await generateObject({
+      model,
+      schema: invoiceSchema,
+      prompt: `Extract invoice information from the following OCR text (in markdown format).
+
+Parse all relevant fields including:
+- Invoice number
+- Carrier/trucking company name
+- Invoice date (convert to ISO format YYYY-MM-DD)
+- PO number (if referenced)
+- BOL number (if referenced)
+- All charges listed (linehaul, fuel surcharge, accessorials, etc.)
+- Total amount
+- Payment terms (if available)
+- Due date (convert to ISO format YYYY-MM-DD if available)
+
+The text may contain tables and structured data in markdown format.
+
+Text:
+${text}
+
+Extract the data accurately and structure it according to the schema.`,
+    });
+
+    return result.object as ExtractedInvoiceData;
+  }
+
+  /**
+   * Main OCR method: extracts and parses invoice from PDF
+   * Also uploads the file to R2 and saves metadata to database
+   */
+  static async extractInvoice(file: File): Promise<InvoiceOCRResult> {
+    // Perform OCR with Mistral
+    const text = await this.performMistralOCR(file);
+
+    console.log('Invoice text', text);
+
+    // Parse text with AI to get structured data
+    const extractedData = await this.parseInvoiceText(text);
+
+    // Upload file to R2 and save to database
+    const savedFile = await UploadService.uploadFile(file, 'invoice_pdf');
+
+    return {
+      data: extractedData,
+      file: savedFile,
+    };
+  }
 }
 
 // Elysia routes for OCR
@@ -246,6 +342,24 @@ export const ocrRoutes = new Elysia({ prefix: '/ocr' })
     '/bill-of-lading',
     async ({ body }) => {
       const result = await OCRService.extractBillOfLading(body.file);
+      return {
+        success: true,
+        data: result.data,
+        file: result.file,
+      };
+    },
+    {
+      body: t.Object({
+        file: t.File({
+          type: 'application/pdf',
+        }),
+      }),
+    }
+  )
+  .post(
+    '/invoice',
+    async ({ body }) => {
+      const result = await OCRService.extractInvoice(body.file);
       return {
         success: true,
         data: result.data,

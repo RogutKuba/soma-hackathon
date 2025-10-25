@@ -5,6 +5,7 @@ import {
   purchaseOrdersTable,
   type POEntity,
 } from '@/db/schema/purchase-orders.db';
+import { filesTable } from '@/db/schema/files.db';
 import { eq } from 'drizzle-orm';
 
 // Elysia routes for purchase orders
@@ -190,10 +191,35 @@ export abstract class POService {
   }
 
   /**
-   * Gets all purchase orders with optional filtering
+   * Gets all purchase orders with file information
    */
   static async getAllPOs() {
-    return await db.select().from(purchaseOrdersTable);
+    return await db
+      .select({
+        id: purchaseOrdersTable.id,
+        po_number: purchaseOrdersTable.po_number,
+        customer_name: purchaseOrdersTable.customer_name,
+        carrier_name: purchaseOrdersTable.carrier_name,
+        origin: purchaseOrdersTable.origin,
+        destination: purchaseOrdersTable.destination,
+        pickup_date: purchaseOrdersTable.pickup_date,
+        delivery_date: purchaseOrdersTable.delivery_date,
+        expected_charges: purchaseOrdersTable.expected_charges,
+        total_amount: purchaseOrdersTable.total_amount,
+        status: purchaseOrdersTable.status,
+        file_id: purchaseOrdersTable.file_id,
+        created_at: purchaseOrdersTable.created_at,
+        updated_at: purchaseOrdersTable.updated_at,
+        file: {
+          id: filesTable.id,
+          filename: filesTable.filename,
+          url: filesTable.url,
+          mime_type: filesTable.mime_type,
+          size_bytes: filesTable.size_bytes,
+        },
+      })
+      .from(purchaseOrdersTable)
+      .leftJoin(filesTable, eq(purchaseOrdersTable.file_id, filesTable.id));
   }
 
   /**

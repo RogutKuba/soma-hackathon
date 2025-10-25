@@ -61,5 +61,4 @@ export const billsOfLadingTable = pgTable('bills_of_lading', {
     .notNull(),
 });
 
-export type BillOfLading = typeof billsOfLadingTable.$inferSelect;
-export type NewBillOfLading = typeof billsOfLadingTable.$inferInsert;
+export type BillOfLadingEntity = typeof billsOfLadingTable.$inferSelect;

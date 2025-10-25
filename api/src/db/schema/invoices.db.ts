@@ -13,7 +13,7 @@ export const invoicesTable = pgTable('invoices', {
   invoice_date: timestamp('invoice_date', { mode: 'string' }).notNull(),
 
   // References to PO and BOL (as stated on invoice)
-  po_number: text('po_number'),
+  po_number: text('po_number').notNull(), // Required for 3-way matching
   bol_number: text('bol_number'),
   po_id: text('po_id')
     .$type<Id<'po'>>()
@@ -68,5 +68,4 @@ export const invoicesTable = pgTable('invoices', {
     .notNull(),
 });
 
-export type Invoice = typeof invoicesTable.$inferSelect;
-export type NewInvoice = typeof invoicesTable.$inferInsert;
+export type InvoiceEntity = typeof invoicesTable.$inferSelect;

@@ -4,7 +4,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "inngest": "npx inngest-cli@latest dev -u http://localhost:8000/inngest"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.23",
@@ -16,6 +17,7 @@
     "drizzle-kit": "^0.31.5",
     "drizzle-orm": "^0.44.7",
     "elysia": "latest",
+    "inngest": "^3.44.3",
     "nanoid": "^5.1.6",
     "pg": "^8.16.3",
     "pino-pretty": "^13.1.2",

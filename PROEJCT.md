@@ -14,7 +14,7 @@ Controls: Rules for duplicates, mismatch vs contracted rate, missing POD, new ve
 
 UI: One-page dashboard: Unmatched, Flagged, Ready to Pay / Invoice, simple Cashflow chart.
 
-Agents: Daytona sandbox runs the “reconcile & generate artifacts” step; Claude Code writes/edits the reconciliation script.
+Agents: Inngest sandbox runs the “reconcile & generate artifacts” step; Claude Code writes/edits the reconciliation script.
 
 High-level flow (system diagram in words)
 
@@ -54,7 +54,7 @@ Visualize
 
 Dashboard cards + cashflow forecast (payables due vs receivables expected).
 
-Timeline of actions with Daytona job links (provable automation).
+Timeline of actions with Inngest job links (provable automation).
 
 Data model (lean Drizzle-style tables)
 
@@ -100,7 +100,7 @@ POST /api/ingest/invoice → accepts PDF, returns invoices_carrier_raw.id
 
 POST /api/parse/:rawId → LLM/OCR → invoices_carrier row
 
-POST /api/reconcile/:carrierInvoiceId → kicks Daytona job to run reconcile.ts
+POST /api/reconcile/:carrierInvoiceId → kicks Inngest job to run reconcile.ts
 
 GET /api/invoices?status=flagged|ready_to_pay|unmatched
 
@@ -112,7 +112,7 @@ GET /api/cashflow/forecast → returns 30-day buckets for chart
 
 POST /api/flags/resolve/:flagId → mark resolved (for demo)
 
-Daytona + Claude Code SDK loop (the “wow” bit)
+Inngest + Claude Code SDK loop (the “wow” bit)
 
 reconcile.ts (inside sandbox)
 
@@ -214,7 +214,7 @@ File storage + invoices_carrier_raw creation.
 
 Parser endpoint (LLM/OCR stub with deterministic JSON from fixtures to avoid fragility).
 
-Daytona job scaffold + reconcile.ts v1 (exact match only).
+Inngest job scaffold + reconcile.ts v1 (exact match only).
 
 UI lists for Unmatched / Flagged / Ready.
 
@@ -226,7 +226,7 @@ AR PDF generator (server-side template) + Payables scheduler (fake ACH).
 
 Cashflow forecast (group by day).
 
-Delight polish: activity feed, one-click Dispute, Daytona logs link.
+Delight polish: activity feed, one-click Dispute, Inngest logs link.
 
 Stretch (if time remains)
 
@@ -272,7 +272,7 @@ Demo script (say these lines)
 
 “The second gets flagged DUPLICATE_INVOICE and BANK_CHANGE; here’s the explanation and the one-click Dispute email.”
 
-“Here’s the Daytona job log showing the exact reconciliation script that ran—no magic.”
+“Here’s the Inngest job log showing the exact reconciliation script that ran—no magic.”
 
 “Cashflow forecast updates immediately; notice how blocking the duplicate preserved $2,000 of working capital.”
 
@@ -280,7 +280,7 @@ What to pre-bake (so the live demo is smooth)
 
 Parser returns clean JSON for your sample PDFs (avoid live OCR flakiness).
 
-Daytona jobs run against a local fixture DB snapshot to be deterministic.
+Inngest jobs run against a local fixture DB snapshot to be deterministic.
 
 One “Attach POD” action that flips a flag from MISSING_POD → resolved.
 

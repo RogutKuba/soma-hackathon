@@ -63,5 +63,4 @@ export const flagsTable = pgTable('flags', {
     .notNull(),
 });
 
-export type Flag = typeof flagsTable.$inferSelect;
-export type NewFlag = typeof flagsTable.$inferInsert;
+export type FlagEntity = typeof flagsTable.$inferSelect;

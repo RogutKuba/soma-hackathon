@@ -1,7 +1,5 @@
-'use client';
-
 import { useState } from 'react';
-import { useGetAllPurchaseOrdersQuery } from '@/query/po.query';
+import { useGetAllBillsOfLadingQuery } from '@/query/bol.query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,47 +11,47 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { UploadPoForm } from './UploadPoForm';
+import { UploadBolForm } from './UploadBolForm';
 import {
   RiFileList3Line,
   RiTruckLine,
   RiMapPinLine,
   RiCalendarLine,
-  RiMoneyDollarCircleLine,
+  RiScales3Line,
   RiAddLine,
+  RiFilePdfLine,
+  RiExternalLinkLine,
   RiEyeLine,
 } from '@remixicon/react';
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  bol_received: 'bg-blue-100 text-blue-800 border-blue-200',
+  delivered: 'bg-blue-100 text-blue-800 border-blue-200',
   invoiced: 'bg-purple-100 text-purple-800 border-purple-200',
   matched: 'bg-green-100 text-green-800 border-green-200',
-  disputed: 'bg-red-100 text-red-800 border-red-200',
 };
 
 const statusLabels = {
   pending: 'Pending',
-  bol_received: 'BOL Received',
+  delivered: 'Delivered',
   invoiced: 'Invoiced',
   matched: 'Matched',
-  disputed: 'Disputed',
 };
 
-export function POTable() {
+export function BolTable() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const { data, isLoading, error, refetch } = useGetAllPurchaseOrdersQuery();
+  const { data, isLoading, error, refetch } = useGetAllBillsOfLadingQuery();
 
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Purchase Orders</CardTitle>
+          <CardTitle>Bills of Lading</CardTitle>
         </CardHeader>
         <CardContent>
           <div className='flex items-center justify-center py-8'>
             <div className='text-muted-foreground'>
-              Loading purchase orders...
+              Loading bills of lading...
             </div>
           </div>
         </CardContent>
@@ -65,12 +63,12 @@ export function POTable() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Purchase Orders</CardTitle>
+          <CardTitle>Bills of Lading</CardTitle>
         </CardHeader>
         <CardContent>
           <div className='flex items-center justify-center py-8'>
             <div className='text-destructive'>
-              Failed to load purchase orders
+              Failed to load bills of lading
             </div>
           </div>
         </CardContent>
@@ -78,7 +76,7 @@ export function POTable() {
     );
   }
 
-  const purchaseOrders = data?.purchase_orders || [];
+  const billsOfLading = data?.bills_of_lading || [];
 
   return (
     <>
@@ -87,10 +85,10 @@ export function POTable() {
           <div className='flex items-center justify-between'>
             <CardTitle className='flex items-center gap-2'>
               <RiFileList3Line className='h-5 w-5' />
-              Purchase Orders
+              Bills of Lading
             </CardTitle>
             <div className='flex items-center gap-3'>
-              <Badge variant='secondary'>{purchaseOrders.length} Total</Badge>
+              <Badge variant='secondary'>{billsOfLading.length} Total</Badge>
               <Dialog
                 open={uploadDialogOpen}
                 onOpenChange={setUploadDialogOpen}
@@ -98,18 +96,18 @@ export function POTable() {
                 <DialogTrigger asChild>
                   <Button size='sm' className='gap-2'>
                     <RiAddLine className='h-4 w-4' />
-                    Upload PO
+                    Upload BOL
                   </Button>
                 </DialogTrigger>
                 <DialogContent className='sm:max-w-4xl max-h-[90vh] overflow-y-auto'>
                   <DialogHeader>
-                    <DialogTitle>Upload Purchase Order</DialogTitle>
+                    <DialogTitle>Upload Bill of Lading</DialogTitle>
                     <DialogDescription>
-                      Upload a purchase order PDF for automatic parsing and data
+                      Upload a bill of lading PDF for automatic parsing and data
                       extraction
                     </DialogDescription>
                   </DialogHeader>
-                  <UploadPoForm
+                  <UploadBolForm
                     onSuccess={() => {
                       setUploadDialogOpen(false);
                       refetch();
@@ -121,11 +119,11 @@ export function POTable() {
           </div>
         </CardHeader>
         <CardContent>
-          {purchaseOrders.length === 0 ? (
+          {billsOfLading.length === 0 ? (
             <div className='flex flex-col items-center justify-center py-12 text-center'>
               <RiFileList3Line className='h-12 w-12 text-muted-foreground mb-4' />
               <p className='text-muted-foreground text-sm'>
-                No purchase orders yet. Upload your first PO to get started.
+                No bills of lading yet. Upload your first BOL to get started.
               </p>
             </div>
           ) : (
@@ -134,10 +132,10 @@ export function POTable() {
                 <thead>
                   <tr className='border-b'>
                     <th className='text-left py-3 px-4 font-medium text-sm'>
-                      PO Number
+                      BOL Number
                     </th>
                     <th className='text-left py-3 px-4 font-medium text-sm'>
-                      Customer
+                      PO Number
                     </th>
                     <th className='text-left py-3 px-4 font-medium text-sm'>
                       Carrier
@@ -148,8 +146,8 @@ export function POTable() {
                     <th className='text-left py-3 px-4 font-medium text-sm'>
                       Dates
                     </th>
-                    <th className='text-right py-3 px-4 font-medium text-sm'>
-                      Amount
+                    <th className='text-left py-3 px-4 font-medium text-sm'>
+                      Weight
                     </th>
                     <th className='text-center py-3 px-4 font-medium text-sm'>
                       Status
@@ -160,29 +158,31 @@ export function POTable() {
                   </tr>
                 </thead>
                 <tbody>
-                  {purchaseOrders.map((po) => (
+                  {billsOfLading.map((bol) => (
                     <tr
-                      key={po.id}
+                      key={bol.id}
                       className='border-b hover:bg-muted/50 transition-colors'
                     >
-                      {/* PO Number */}
+                      {/* BOL Number */}
                       <td className='py-4 px-4'>
                         <div className='flex items-center gap-2'>
                           <RiFileList3Line className='h-4 w-4 text-muted-foreground' />
-                          <span className='font-medium'>{po.po_number}</span>
+                          <span className='font-medium'>{bol.bol_number}</span>
                         </div>
                       </td>
 
-                      {/* Customer */}
+                      {/* PO Number */}
                       <td className='py-4 px-4'>
-                        <div className='text-sm'>{po.customer_name}</div>
+                        <div className='text-sm font-medium text-blue-600'>
+                          {bol.po_number}
+                        </div>
                       </td>
 
                       {/* Carrier */}
                       <td className='py-4 px-4'>
                         <div className='flex items-center gap-2'>
                           <RiTruckLine className='h-4 w-4 text-muted-foreground' />
-                          <span className='text-sm'>{po.carrier_name}</span>
+                          <span className='text-sm'>{bol.carrier_name}</span>
                         </div>
                       </td>
 
@@ -192,13 +192,13 @@ export function POTable() {
                           <div className='flex items-center gap-1 text-xs text-muted-foreground'>
                             <RiMapPinLine className='h-3 w-3' />
                             <span className='truncate max-w-[150px]'>
-                              {po.origin}
+                              {bol.origin}
                             </span>
                           </div>
                           <div className='flex items-center gap-1 text-xs text-muted-foreground'>
                             <RiMapPinLine className='h-3 w-3' />
                             <span className='truncate max-w-[150px]'>
-                              {po.destination}
+                              {bol.destination}
                             </span>
                           </div>
                         </div>
@@ -210,7 +210,7 @@ export function POTable() {
                           <div className='flex items-center gap-1 text-xs'>
                             <RiCalendarLine className='h-3 w-3 text-muted-foreground' />
                             <span>
-                              {new Date(po.pickup_date).toLocaleDateString(
+                              {new Date(bol.pickup_date).toLocaleDateString(
                                 'en-US',
                                 {
                                   month: 'short',
@@ -220,9 +220,9 @@ export function POTable() {
                             </span>
                           </div>
                           <div className='flex items-center gap-1 text-xs text-muted-foreground'>
-                            <span>→</span>
+                            <span>�</span>
                             <span>
-                              {new Date(po.delivery_date).toLocaleDateString(
+                              {new Date(bol.delivery_date).toLocaleDateString(
                                 'en-US',
                                 {
                                   month: 'short',
@@ -234,34 +234,35 @@ export function POTable() {
                         </div>
                       </td>
 
-                      {/* Amount */}
-                      <td className='py-4 px-4 text-right'>
-                        <div className='flex items-center justify-end gap-1 font-semibold'>
-                          <RiMoneyDollarCircleLine className='h-4 w-4 text-muted-foreground' />
-                          <span>
-                            {po.total_amount.toLocaleString('en-US', {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
+                      {/* Weight */}
+                      <td className='py-4 px-4'>
+                        {bol.weight_lbs ? (
+                          <div className='flex items-center gap-1 text-sm'>
+                            <RiScales3Line className='h-4 w-4 text-muted-foreground' />
+                            <span>{bol.weight_lbs.toLocaleString()} lbs</span>
+                          </div>
+                        ) : (
+                          <span className='text-xs text-muted-foreground'>
+                            N/A
                           </span>
-                        </div>
+                        )}
                       </td>
 
                       {/* Status */}
                       <td className='py-4 px-4 text-center'>
                         <Badge
                           variant='outline'
-                          className={statusColors[po.status]}
+                          className={statusColors[bol.status]}
                         >
-                          {statusLabels[po.status]}
+                          {statusLabels[bol.status]}
                         </Badge>
                       </td>
 
                       {/* PDF Link */}
                       <td className='py-4 px-4 text-center'>
-                        {po.file?.url ? (
+                        {bol.file?.url ? (
                           <a
-                            href={po.file.url}
+                            href={bol.file.url}
                             target='_blank'
                             rel='noopener noreferrer'
                             className='inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline'

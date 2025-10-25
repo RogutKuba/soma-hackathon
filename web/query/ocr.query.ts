@@ -28,9 +28,30 @@ export interface FileEntity {
   url: string;
 }
 
+export interface ExtractedInvoiceData {
+  invoice_number: string;
+  carrier_name: string;
+  invoice_date: string;
+  po_number?: string;
+  bol_number?: string;
+  charges: Array<{
+    description: string;
+    amount: number;
+  }>;
+  total_amount: number;
+  payment_terms?: string;
+  due_date?: string;
+}
+
 interface OcrPurchaseOrderResponse {
   success: boolean;
   data: ExtractedPOData;
+  file: FileEntity;
+}
+
+interface OcrInvoiceResponse {
+  success: boolean;
+  data: ExtractedInvoiceData;
   file: FileEntity;
 }
 
@@ -50,6 +71,25 @@ export const useOcrPurchaseOrderMutation = () => {
 
   return {
     ocrPurchaseOrder: mutation.mutateAsync,
+    ...mutation,
+  };
+};
+
+export const useOcrInvoiceMutation = () => {
+  const mutation = useMutation({
+    mutationFn: async (file: File): Promise<OcrInvoiceResponse> => {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      return API_CLIENT.fetch('/ocr/invoice', {
+        method: 'POST',
+        body: formData,
+      });
+    },
+  });
+
+  return {
+    ocrInvoice: mutation.mutateAsync,
     ...mutation,
   };
 };
