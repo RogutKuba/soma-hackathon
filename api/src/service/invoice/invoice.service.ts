@@ -4,6 +4,7 @@ import { db } from '@/db/client';
 import { invoicesTable, type InvoiceEntity } from '@/db/schema/invoices.db';
 import { filesTable } from '@/db/schema/files.db';
 import { eq } from 'drizzle-orm';
+import { createMatchingJob } from '@/service/matching/matching.job';
 
 export class InvoiceService {
   /**
@@ -295,6 +296,10 @@ export const invoiceRoutes = new Elysia({ prefix: '/invoices' })
     '/',
     async ({ body }) => {
       const result = await InvoiceService.createInvoice(body);
+
+      // create a job to match the invoice
+      await createMatchingJob({ invoice_id: result.id });
+
       return {
         success: true,
         invoice: result,

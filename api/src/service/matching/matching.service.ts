@@ -38,7 +38,8 @@ interface LLMMatchingAnalysis {
   reasoning: string;
   discrepancies: Array<{
     field: string;
-    po_value: string | number;
+    po_value?: string | number;
+    bol_value?: string | number;
     invoice_value: string | number;
     issue: string;
   }>;
@@ -47,10 +48,12 @@ interface LLMMatchingAnalysis {
 /**
  * 3-Way Matching Service
  *
- * Currently implements only the perfect match case where:
- * - All documents link by PO number
- * - All amounts match
- * - No discrepancies found
+ * Performs comprehensive matching across Purchase Orders, Bills of Lading, and Invoices:
+ * - Compares amounts, charges, carriers, routes, and dates across all three documents
+ * - Uses LLM (Gemini) to intelligently analyze discrepancies
+ * - Handles both 2-way (PO + Invoice) and 3-way (PO + BOL + Invoice) matching
+ * - Documents linked by PO number
+ * - Updates statuses: matched, flagged, or disputed based on analysis
  */
 export abstract class MatchingService {
   /**
@@ -99,9 +102,9 @@ export abstract class MatchingService {
   static async analyzeMatchWithLLM(
     docs: MatchingDocuments
   ): Promise<LLMMatchingAnalysis> {
-    const prompt = `You are analyzing a 3-way match between a Purchase Order (PO) and an Invoice for freight/logistics services.
+    const prompt = `You are analyzing a 3-way match between a Purchase Order (PO), Bill of Lading (BOL), and Invoice for freight/logistics services.
 
-**Purchase Order:**
+**Purchase Order (Expected):**
 - PO Number: ${docs.po.po_number}
 - Customer: ${docs.po.customer_name}
 - Carrier: ${docs.po.carrier_name}
@@ -115,52 +118,75 @@ ${docs.po.expected_charges
   .map((c) => `  - ${c.description}: $${c.amount}`)
   .join('\n')}
 
-**Invoice:**
+${
+  docs.bol
+    ? `**Bill of Lading (Actual Delivery):**
+- BOL Number: ${docs.bol.bol_number}
+- PO Number: ${docs.bol.po_number}
+- Carrier: ${docs.bol.carrier_name}
+- Origin: ${docs.bol.origin}
+- Destination: ${docs.bol.destination}
+- Pickup Date: ${docs.bol.pickup_date}
+- Delivery Date: ${docs.bol.delivery_date}
+${docs.bol.weight_lbs ? `- Weight: ${docs.bol.weight_lbs} lbs` : ''}
+${docs.bol.item_description ? `- Items: ${docs.bol.item_description}` : ''}
+${
+  docs.bol.actual_charges && docs.bol.actual_charges.length > 0
+    ? `- Actual Charges:\n${docs.bol.actual_charges
+        .map((c) => `  - ${c.description}: $${c.amount}`)
+        .join('\n')}`
+    : '- Actual Charges: Not specified'
+}`
+    : '**Bill of Lading:** Not available (2-way match only)'
+}
+
+**Invoice (Billed):**
 - Invoice Number: ${docs.invoice.invoice_number}
 - Carrier: ${docs.invoice.carrier_name}
 - Invoice Date: ${docs.invoice.invoice_date}
 - PO Number Referenced: ${docs.invoice.po_number}
+${docs.invoice.bol_number ? `- BOL Number Referenced: ${docs.invoice.bol_number}` : ''}
 - Total Amount: $${docs.invoice.total_amount}
 - Charges:
 ${docs.invoice.charges
   .map((c) => `  - ${c.description}: $${c.amount}`)
   .join('\n')}
 
-${
-  docs.bol
-    ? `**Bill of Lading (BOL):**
-- BOL Number: ${docs.bol.bol_number}
-- Carrier: ${docs.bol.carrier_name}
-- Origin: ${docs.bol.origin}
-- Destination: ${docs.bol.destination}
-- Pickup Date: ${docs.bol.pickup_date}
-- Delivery Date: ${docs.bol.delivery_date}
-${
-  docs.bol.actual_charges
-    ? `- Actual Charges:\n${docs.bol.actual_charges
-        .map((c) => `  - ${c.description}: $${c.amount}`)
-        .join('\n')}`
-    : ''
-}`
-    : '**Bill of Lading:** Not available'
-}
-
 **Your Task:**
-Analyze if the Invoice matches the Purchase Order. Consider:
-1. Do the total amounts match (or are within reasonable variance)?
-2. Do the line items/charges match between PO and Invoice?
-3. Are the carriers consistent?
-4. Does the general information align (if BOL is available)?
+Perform a ${docs.bol ? '3-way' : '2-way'} match analysis. Compare:
 
-For freight logistics, small variances (fuel surcharges, accessorial fees) are common.
+1. **Amounts**:
+   - PO expected total vs ${docs.bol ? 'BOL actual charges (if present) vs ' : ''}Invoice billed total
+   - Individual line items across all documents
+
+2. **Delivery Details**:
+   - Carrier names must match
+   - Origin and destination must match${docs.bol ? ' (compare PO to BOL to Invoice)' : ''}
+   - Dates should be consistent${docs.bol ? ' (PO dates vs BOL actual dates)' : ''}
+
+3. **Charges**:
+   - Compare PO expected charges${docs.bol && docs.bol.actual_charges ? ' vs BOL actual charges' : ''} vs Invoice charges
+   - Flag unexpected charges on invoice not in PO${docs.bol ? ' or BOL' : ''}
+   - Flag missing charges from PO${docs.bol && docs.bol.actual_charges ? ' or BOL' : ''} that aren't on invoice
+   - Identify charge variances (same description, different amounts)
+
+**Important Notes:**
+- Small variances in freight (fuel surcharges, accessorial fees) are COMMON and acceptable
+- Only flag SIGNIFICANT discrepancies that require review
+- If BOL is present, it represents the actual delivery and should be weighted heavily
+- Invoice should match ${docs.bol ? 'BOL actual charges if present, otherwise ' : ''}PO expected charges
 
 Return your analysis as a JSON object with:
-- matched: boolean (true if this is a good match, false if significant discrepancies)
+- matched: boolean (true if acceptable match, false if significant discrepancies requiring review)
 - confidence: number from 0-1 (how confident you are in your assessment)
-- variance_amount: number (absolute dollar difference between PO and Invoice totals)
+- variance_amount: number (absolute dollar difference across all totals)
 - variance_percentage: number (percentage difference)
 - reasoning: string (2-3 sentences explaining your decision)
-- discrepancies: array of objects with {field, po_value, invoice_value, issue} for each discrepancy found
+- discrepancies: array of objects with {field, po_value?, bol_value?, invoice_value, issue} for each discrepancy found
+  * Include po_value if PO has a different value
+  * Include bol_value if BOL exists and has a different value
+  * Always include invoice_value
+  * Provide clear issue description
 
 Return ONLY valid JSON, no markdown formatting.`;
 
@@ -194,33 +220,53 @@ Return ONLY valid JSON, no markdown formatting.`;
     docs: MatchingDocuments,
     llmAnalysis: LLMMatchingAnalysis
   ): Promise<MatchingResultEntity> {
+    // Helper to safely convert to string
+    const toStringOrNull = (val: string | number | undefined): string | null => {
+      if (val === undefined || val === null) return null;
+      return typeof val === 'number' ? val.toString() : val;
+    };
+
     // Build charge comparison from LLM discrepancies
-    const chargeComparison = llmAnalysis.discrepancies.map((disc) => {
+    const chargeComparison: Array<{
+      description: string;
+      po_amount: string | null;
+      bol_amount: string | null;
+      invoice_amount: string | null;
+      status: 'match' | 'variance' | 'missing' | 'extra';
+    }> = llmAnalysis.discrepancies.map((disc) => {
       return {
         description: disc.field,
-        po_amount: typeof disc.po_value === 'number' ? disc.po_value : null,
-        bol_amount: null, // BOL charges optional for MVP
-        invoice_amount:
-          typeof disc.invoice_value === 'number' ? disc.invoice_value : null,
+        po_amount: toStringOrNull(disc.po_value),
+        bol_amount: toStringOrNull(disc.bol_value),
+        invoice_amount: toStringOrNull(disc.invoice_value),
         status: 'variance' as const,
       };
     });
 
-    // Also add matched charges from PO
+    // Also add matched charges across all three documents
     const poCharges = docs.po.expected_charges || [];
+    const bolCharges = docs.bol?.actual_charges || [];
     const invoiceCharges = docs.invoice.charges || [];
+
+    // Build a comprehensive charge comparison
     poCharges.forEach((poCharge) => {
       const invCharge = invoiceCharges.find(
         (ic) =>
           ic.description.toLowerCase() === poCharge.description.toLowerCase()
       );
+      const bolCharge = bolCharges.find(
+        (bc) =>
+          bc.description.toLowerCase() === poCharge.description.toLowerCase()
+      );
+
+      // Only add if all amounts match (perfect match case)
       if (invCharge && invCharge.amount === poCharge.amount) {
         chargeComparison.push({
           description: poCharge.description,
-          po_amount: poCharge.amount,
-          bol_amount: null,
-          invoice_amount: invCharge.amount,
-          status: 'variance' as const,
+          po_amount: poCharge.amount.toString(),
+          bol_amount: bolCharge ? bolCharge.amount.toString() : null,
+          invoice_amount: invCharge.amount.toString(),
+          status: 'match' as const,
         });
       }
     });
@@ -262,7 +308,7 @@ Return ONLY valid JSON, no markdown formatting.`;
    * Update document statuses based on LLM matching results
    *
    * - If matched → all statuses → "matched"
-   * - If not matched → statuses stay as is or → "disputed"
+   * - If not matched → PO: "disputed", BOL: "invoiced", Invoice: "flagged"
    */
   static async updateDocumentStatuses(
     docs: MatchingDocuments,
@@ -292,6 +338,34 @@ Return ONLY valid JSON, no markdown formatting.`;
         .update(invoicesTable)
         .set({
           status: 'matched',
+          updated_at: new Date().toISOString(),
+        })
+        .where(eq(invoicesTable.id, docs.invoice.id));
+    } else {
+      // Not matched - flag invoice and mark PO as disputed
+      await db
+        .update(purchaseOrdersTable)
+        .set({
+          status: 'disputed',
+          updated_at: new Date().toISOString(),
+        })
+        .where(eq(purchaseOrdersTable.id, docs.po.id));
+
+      // BOL keeps 'invoiced' status when there are discrepancies
+      if (docs.bol) {
+        await db
+          .update(billsOfLadingTable)
+          .set({
+            status: 'invoiced',
+            updated_at: new Date().toISOString(),
+          })
+          .where(eq(billsOfLadingTable.id, docs.bol.id));
+      }
+
+      await db
+        .update(invoicesTable)
+        .set({
+          status: 'flagged',
           updated_at: new Date().toISOString(),
         })
         .where(eq(invoicesTable.id, docs.invoice.id));

@@ -7,7 +7,11 @@ export interface MatchingResult {
   po_id: string;
   bol_id: string | null;
   invoice_id: string;
-  match_status: 'perfect_match' | 'minor_variance' | 'major_variance' | 'no_match';
+  match_status:
+    | 'perfect_match'
+    | 'minor_variance'
+    | 'major_variance'
+    | 'no_match';
   confidence_score: number;
   comparison: {
     po_total: number;
@@ -17,9 +21,9 @@ export interface MatchingResult {
     variance_pct: number;
     charge_comparison: Array<{
       description: string;
-      po_amount: number | null;
-      bol_amount: number | null;
-      invoice_amount: number | null;
+      po_amount: string | null;
+      bol_amount: string | null;
+      invoice_amount: string | null;
       status: 'match' | 'variance' | 'missing' | 'extra';
     }>;
     llm_reasoning?: string;
@@ -38,6 +42,7 @@ export const useGetAllMatchingResultsQuery = () => {
         method: 'GET',
       });
     },
+    refetchInterval: 2000,
   });
 };
 
@@ -49,6 +54,7 @@ export const useGetMatchingResultByInvoiceQuery = (invoiceId: string) => {
         method: 'GET',
       });
     },
+
     enabled: !!invoiceId,
   });
 };

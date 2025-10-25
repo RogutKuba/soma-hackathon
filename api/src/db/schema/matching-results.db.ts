@@ -36,9 +36,9 @@ export const matchingResultsTable = pgTable('matching_results', {
 
     charge_comparison: Array<{
       description: string;
-      po_amount: number | null;
-      bol_amount: number | null;
-      invoice_amount: number | null;
+      po_amount: string | null;
+      bol_amount: string | null;
+      invoice_amount: string | null;
       status: 'match' | 'variance' | 'missing' | 'extra';
     }>;
   }>(),
