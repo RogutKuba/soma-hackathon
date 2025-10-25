@@ -2,7 +2,8 @@ import { Elysia, t } from 'elysia';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { env } from '@/lib/env';
 import { generateId } from '@/lib/id';
-import { db, filesTable, type NewFile, type FileType } from '@/db/client';
+import { db } from '@/db/client';
+import { filesTable, FileEntity, type FileType } from '@/db/schema/files.db';
 import { r2Client } from '@/lib/r2';
 
 export class UploadService {
@@ -27,13 +28,15 @@ export class UploadService {
     await r2Client.send(uploadCommand);
 
     // Save metadata to database
-    const newFile: NewFile = {
+    const newFile: FileEntity = {
       id: fileId,
+      created_at: new Date().toISOString(),
       filename: file.name,
       mime_type: file.type,
       size_bytes: file.size,
       storage_path: storagePath,
       file_type: fileType || null,
+      url: `${env.R2_PUBLIC_URL}/${storagePath}`,
     };
 
     const [savedFile] = await db.insert(filesTable).values(newFile).returning();

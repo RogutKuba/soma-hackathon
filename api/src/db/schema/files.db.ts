@@ -13,8 +13,10 @@ export const filesTable = pgTable('files', {
 
   file_type: text('file_type').$type<FileType>(),
 
-  created_at: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  created_at: timestamp('created_at', { mode: 'string' })
+    .defaultNow()
+    .notNull(),
+  url: text('url').notNull(),
 });
 
-export type File = typeof filesTable.$inferSelect;
-export type NewFile = typeof filesTable.$inferInsert;
+export type FileEntity = typeof filesTable.$inferSelect;

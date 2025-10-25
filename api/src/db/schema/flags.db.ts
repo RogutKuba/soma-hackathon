@@ -1,5 +1,5 @@
 import { Id } from '@/lib/id';
-import { text, pgTable, timestamp } from 'drizzle-orm/pg-core';
+import { text, pgTable, timestamp, jsonb } from 'drizzle-orm/pg-core';
 
 export type FlagCode =
   // Amount mismatches
@@ -38,7 +38,7 @@ export const flagsTable = pgTable('flags', {
   explanation: text('explanation').notNull(),
 
   // Context (for display)
-  context: text('context', { mode: 'json' }).$type<{
+  context: jsonb('context').$type<{
     po_amount?: number;
     bol_amount?: number;
     invoice_amount?: number;

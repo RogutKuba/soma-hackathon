@@ -1,7 +1,7 @@
 import { Id } from '@/lib/id';
-import { text, pgTable, timestamp, real } from 'drizzle-orm/pg-core';
+import { text, pgTable, timestamp, real, jsonb } from 'drizzle-orm/pg-core';
 import { purchaseOrdersTable } from './purchase-orders.db';
-import { billsOfLadingTable } from './bills-of-lading.db';
+import { billsOfLadingTable } from './bol.db';
 import { invoicesTable } from './invoices.db';
 
 export const matchingResultsTable = pgTable('matching_results', {
@@ -27,7 +27,7 @@ export const matchingResultsTable = pgTable('matching_results', {
   confidence_score: real('confidence_score').notNull(), // 0-1
 
   // Comparison
-  comparison: text('comparison', { mode: 'json' }).$type<{
+  comparison: jsonb('comparison').$type<{
     po_total: number;
     bol_total?: number;
     invoice_total: number;
@@ -52,7 +52,9 @@ export const matchingResultsTable = pgTable('matching_results', {
   daytona_logs_url: text('daytona_logs_url'),
 
   // Timestamps
-  created_at: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  created_at: timestamp('created_at', { mode: 'string' })
+    .defaultNow()
+    .notNull(),
 });
 
 export type MatchingResult = typeof matchingResultsTable.$inferSelect;

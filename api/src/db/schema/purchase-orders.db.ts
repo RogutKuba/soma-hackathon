@@ -1,8 +1,13 @@
-import { Id } from '@/lib/id';
-import { text, pgTable, timestamp, real } from 'drizzle-orm/pg-core';
+import { filesTable } from '@/db/schema/files.db';
+import { type Id } from '@/lib/id';
+import { text, pgTable, timestamp, real, jsonb } from 'drizzle-orm/pg-core';
 
 export const purchaseOrdersTable = pgTable('purchase_orders', {
   id: text('id').$type<Id<'po'>>().primaryKey(),
+
+  file_id: text('file_id')
+    .$type<Id<'file'>>()
+    .references(() => filesTable.id),
 
   // PO details
   po_number: text('po_number').unique().notNull(),
@@ -16,11 +21,13 @@ export const purchaseOrdersTable = pgTable('purchase_orders', {
   delivery_date: timestamp('delivery_date', { mode: 'string' }).notNull(),
 
   // Expected charges (from PO)
-  expected_charges: text('expected_charges', { mode: 'json' })
-    .$type<Array<{
-      description: string;
-      amount: number;
-    }>>()
+  expected_charges: jsonb('expected_charges')
+    .$type<
+      Array<{
+        description: string;
+        amount: number;
+      }>
+    >()
     .notNull(),
   total_amount: real('total_amount').notNull(),
 
@@ -31,9 +38,12 @@ export const purchaseOrdersTable = pgTable('purchase_orders', {
     .default('pending'),
 
   // Timestamps
-  created_at: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
-  updated_at: timestamp('updated_at', { mode: 'string' }).defaultNow().notNull(),
+  created_at: timestamp('created_at', { mode: 'string' })
+    .defaultNow()
+    .notNull(),
+  updated_at: timestamp('updated_at', { mode: 'string' })
+    .defaultNow()
+    .notNull(),
 });
 
-export type PurchaseOrder = typeof purchaseOrdersTable.$inferSelect;
-export type NewPurchaseOrder = typeof purchaseOrdersTable.$inferInsert;
+export type POEntity = typeof purchaseOrdersTable.$inferSelect;

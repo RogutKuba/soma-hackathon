@@ -1,5 +1,5 @@
 import { Id } from '@/lib/id';
-import { text, pgTable, timestamp, real } from 'drizzle-orm/pg-core';
+import { text, pgTable, timestamp, real, jsonb } from 'drizzle-orm/pg-core';
 import { purchaseOrdersTable } from './purchase-orders.db';
 import { filesTable } from './files.db';
 
@@ -27,12 +27,18 @@ export const billsOfLadingTable = pgTable('bills_of_lading', {
   item_description: text('item_description'),
 
   // Actual charges (from BOL, if listed)
-  actual_charges: text('actual_charges', { mode: 'json' }).$type<
+  actual_charges: jsonb('actual_charges').$type<
     Array<{
       description: string;
       amount: number;
     }>
   >(),
+
+  // File reference
+  file_id: text('file_id')
+    .$type<Id<'file'>>()
+    .references(() => filesTable.id)
+    .notNull(),
 
   // POD
   pod_file_id: text('pod_file_id')
@@ -47,8 +53,12 @@ export const billsOfLadingTable = pgTable('bills_of_lading', {
     .default('pending'),
 
   // Timestamps
-  created_at: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
-  updated_at: timestamp('updated_at', { mode: 'string' }).defaultNow().notNull(),
+  created_at: timestamp('created_at', { mode: 'string' })
+    .defaultNow()
+    .notNull(),
+  updated_at: timestamp('updated_at', { mode: 'string' })
+    .defaultNow()
+    .notNull(),
 });
 
 export type BillOfLading = typeof billsOfLadingTable.$inferSelect;

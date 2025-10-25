@@ -4,6 +4,8 @@ import { ReadyToApproveCard } from "@/components/dashboard/ReadyToApproveCard";
 import { ThreeWayMatchSummary } from "@/components/dashboard/ThreeWayMatchSummary";
 import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
 import { UploadInvoiceButton } from "@/components/dashboard/UploadInvoiceButton";
+import { POTable } from "@/components/po/POTable";
+import { UploadBolButton } from "@/components/bol/UploadBolButton";
 
 export default function Dashboard() {
   return (
@@ -17,8 +19,14 @@ export default function Dashboard() {
               3-Way Invoice Matching - PO, BOL, and Invoice Verification
             </p>
           </div>
-          <UploadInvoiceButton />
+          <div className="flex gap-3">
+            <UploadBolButton />
+            <UploadInvoiceButton />
+          </div>
         </div>
+
+        {/* Purchase Orders Table */}
+        <POTable />
 
         {/* Main Dashboard Grid */}
         <div className="grid gap-6 lg:grid-cols-5">

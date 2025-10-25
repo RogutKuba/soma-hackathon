@@ -2,12 +2,12 @@ import { nanoid } from 'nanoid';
 
 export const Entities = {
   example: 'e',
-  file: 'file',
+  file: 'f',
   po: 'po',
   bol: 'bol',
   inv: 'inv',
-  match: 'match',
-  flag: 'flag',
+  match: 'm',
+  flag: 'f',
 } as const;
 
 export type Entities = typeof Entities;

@@ -1,7 +1,7 @@
 import { Id } from '@/lib/id';
-import { text, pgTable, timestamp, real } from 'drizzle-orm/pg-core';
+import { text, pgTable, timestamp, real, jsonb } from 'drizzle-orm/pg-core';
 import { purchaseOrdersTable } from './purchase-orders.db';
-import { billsOfLadingTable } from './bills-of-lading.db';
+import { billsOfLadingTable } from './bol.db';
 import { filesTable } from './files.db';
 
 export const invoicesTable = pgTable('invoices', {
@@ -23,7 +23,7 @@ export const invoicesTable = pgTable('invoices', {
     .references(() => billsOfLadingTable.id),
 
   // Invoice charges
-  charges: text('charges', { mode: 'json' })
+  charges: jsonb('charges')
     .$type<
       Array<{
         description: string;
@@ -60,8 +60,12 @@ export const invoicesTable = pgTable('invoices', {
   approval_notes: text('approval_notes'),
 
   // Timestamps
-  created_at: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
-  updated_at: timestamp('updated_at', { mode: 'string' }).defaultNow().notNull(),
+  created_at: timestamp('created_at', { mode: 'string' })
+    .defaultNow()
+    .notNull(),
+  updated_at: timestamp('updated_at', { mode: 'string' })
+    .defaultNow()
+    .notNull(),
 });
 
 export type Invoice = typeof invoicesTable.$inferSelect;
