@@ -26,6 +26,13 @@ export const matchingResultsTable = pgTable('matching_results', {
     .notNull(),
   confidence_score: real('confidence_score').notNull(), // 0-1
 
+  // Fuzzy matching metadata
+  po_number_match_type: text('po_number_match_type')
+    .$type<'exact' | 'fuzzy' | 'manual'>()
+    .default('exact'),
+  fuzzy_match_confidence: real('fuzzy_match_confidence'), // 0-1 for fuzzy matches
+  fuzzy_match_reasoning: text('fuzzy_match_reasoning'), // LLM explanation
+
   // Comparison
   comparison: jsonb('comparison').$type<{
     po_total: number;
@@ -41,6 +48,15 @@ export const matchingResultsTable = pgTable('matching_results', {
       invoice_amount: string | null;
       status: 'match' | 'variance' | 'missing' | 'extra';
     }>;
+
+    llm_reasoning?: string;
+
+    // Fuzzy match details
+    po_number_mismatch?: {
+      invoice_po: string;
+      matched_po: string;
+      reason: string;
+    };
   }>(),
 
   // Flags found

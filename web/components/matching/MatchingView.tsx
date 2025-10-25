@@ -337,6 +337,48 @@ export function MatchingView() {
 
                               {selectedResult && (
                                 <div className='space-y-6'>
+                                  {/* Fuzzy Match Warning */}
+                                  {selectedResult.po_number_match_type ===
+                                    'fuzzy' && (
+                                    <div className='bg-yellow-50 border border-yellow-200 rounded-lg p-4'>
+                                      <div className='flex items-center gap-2 mb-2'>
+                                        <RiAlertLine className='h-5 w-5 text-yellow-600' />
+                                        <h3 className='font-semibold text-yellow-900'>
+                                          Fuzzy PO Match
+                                        </h3>
+                                      </div>
+                                      <div className='text-sm text-yellow-800 space-y-2'>
+                                        <p>
+                                          Invoice references PO:{' '}
+                                          <code className='bg-yellow-100 px-1.5 py-0.5 rounded font-mono'>
+                                            {
+                                              selectedResult.comparison
+                                                .po_number_mismatch?.invoice_po
+                                            }
+                                          </code>
+                                        </p>
+                                        <p>
+                                          Matched to PO:{' '}
+                                          <code className='bg-yellow-100 px-1.5 py-0.5 rounded font-mono'>
+                                            {
+                                              selectedResult.comparison
+                                                .po_number_mismatch?.matched_po
+                                            }
+                                          </code>
+                                        </p>
+                                        <p className='italic pt-2 border-t border-yellow-200'>
+                                          {selectedResult.fuzzy_match_reasoning}
+                                        </p>
+                                        <p className='text-xs font-medium pt-2'>
+                                          Fuzzy Match Confidence:{' '}
+                                          {selectedResult.fuzzy_match_confidence
+                                            ? `${(selectedResult.fuzzy_match_confidence * 100).toFixed(0)}%`
+                                            : 'N/A'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {/* Status Section */}
                                   <div>
                                     <h3 className='text-sm font-semibold mb-2'>

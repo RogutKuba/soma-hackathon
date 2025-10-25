@@ -15,7 +15,7 @@ export interface CreatePurchaseOrderInput {
     amount: number;
   }>;
   total_amount: number;
-  fileId: string;  // Changed from File to fileId (string)
+  fileId: string; // Changed from File to fileId (string)
 }
 
 export interface PurchaseOrder {
@@ -70,6 +70,7 @@ export const useGetAllPurchaseOrdersQuery = () => {
         method: 'GET',
       });
     },
+    refetchInterval: 3000,
   });
 };
 
@@ -88,7 +89,9 @@ export const useGetPurchaseOrderByIdQuery = (id: string) => {
 // Mutations
 export const useCreatePurchaseOrderMutation = () => {
   const mutation = useMutation({
-    mutationFn: async (data: CreatePurchaseOrderInput): Promise<CreatePurchaseOrderResponse> => {
+    mutationFn: async (
+      data: CreatePurchaseOrderInput
+    ): Promise<CreatePurchaseOrderResponse> => {
       // No longer using FormData - just sending JSON
       return API_CLIENT.fetch('/purchase-orders', {
         method: 'POST',
@@ -105,7 +108,7 @@ export const useCreatePurchaseOrderMutation = () => {
           delivery_date: data.delivery_date,
           expected_charges: data.expected_charges,
           total_amount: data.total_amount,
-          fileId: data.fileId,  // Pass the file ID from OCR
+          fileId: data.fileId, // Pass the file ID from OCR
         }),
       });
     },
@@ -119,7 +122,10 @@ export const useCreatePurchaseOrderMutation = () => {
 
 export const useUpdatePOStatusMutation = () => {
   const mutation = useMutation({
-    mutationFn: async ({ id, status }: UpdatePOStatusInput): Promise<CreatePurchaseOrderResponse> => {
+    mutationFn: async ({
+      id,
+      status,
+    }: UpdatePOStatusInput): Promise<CreatePurchaseOrderResponse> => {
       return API_CLIENT.fetch(`/purchase-orders/${id}/status`, {
         method: 'PATCH',
         headers: {

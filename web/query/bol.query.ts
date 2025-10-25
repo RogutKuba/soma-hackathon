@@ -124,6 +124,7 @@ export const useGetAllBillsOfLadingQuery = (filters?: {
         method: 'GET',
       });
     },
+    refetchInterval: 3000,
   });
 };
 

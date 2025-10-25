@@ -50,7 +50,13 @@ export interface Invoice {
   invoice_file_id: string | null;
   match_type: 'exact' | 'fuzzy' | 'manual' | null;
   match_confidence: number;
-  status: 'pending' | 'matched' | 'flagged' | 'approved' | 'disputed' | 'rejected';
+  status:
+    | 'pending'
+    | 'matched'
+    | 'flagged'
+    | 'approved'
+    | 'disputed'
+    | 'rejected';
   approved_at: string | null;
   approved_by: string | null;
   approval_notes: string | null;
@@ -83,7 +89,13 @@ interface GetInvoiceByIdResponse {
 
 interface UpdateInvoiceStatusInput {
   id: string;
-  status: 'pending' | 'matched' | 'flagged' | 'approved' | 'disputed' | 'rejected';
+  status:
+    | 'pending'
+    | 'matched'
+    | 'flagged'
+    | 'approved'
+    | 'disputed'
+    | 'rejected';
 }
 
 interface ApproveInvoiceInput {
@@ -94,12 +106,19 @@ interface ApproveInvoiceInput {
 
 // Queries
 export const useGetAllInvoicesQuery = (filters?: {
-  status?: 'pending' | 'matched' | 'flagged' | 'approved' | 'disputed' | 'rejected';
+  status?:
+    | 'pending'
+    | 'matched'
+    | 'flagged'
+    | 'approved'
+    | 'disputed'
+    | 'rejected';
   carrier_name?: string;
 }) => {
   const params = new URLSearchParams();
   if (filters?.status) params.append('status', filters.status);
-  if (filters?.carrier_name) params.append('carrier_name', filters.carrier_name);
+  if (filters?.carrier_name)
+    params.append('carrier_name', filters.carrier_name);
 
   const queryString = params.toString();
   const url = queryString ? `/invoices?${queryString}` : '/invoices';
@@ -111,6 +130,7 @@ export const useGetAllInvoicesQuery = (filters?: {
         method: 'GET',
       });
     },
+    refetchInterval: 3000,
   });
 };
 
@@ -129,7 +149,9 @@ export const useGetInvoiceByIdQuery = (id: string) => {
 // Mutations
 export const useCreateInvoiceMutation = () => {
   const mutation = useMutation({
-    mutationFn: async (data: CreateInvoiceInput): Promise<CreateInvoiceResponse> => {
+    mutationFn: async (
+      data: CreateInvoiceInput
+    ): Promise<CreateInvoiceResponse> => {
       return API_CLIENT.fetch('/invoices', {
         method: 'POST',
         headers: {

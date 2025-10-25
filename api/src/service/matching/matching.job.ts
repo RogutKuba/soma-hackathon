@@ -30,20 +30,30 @@ export const runMatchingJob = inngestClient.createFunction(
       };
     }
 
-    console.log(`Found related documents: PO ${docs.po.po_number}, BOL: ${docs.bol?.bol_number || 'N/A'}`);
+    console.log(
+      `Found related documents: PO ${docs.docs.po.po_number}, BOL: ${
+        docs.docs.bol?.bol_number || 'N/A'
+      }`
+    );
 
     // Step 2: Analyze match with LLM
     const llmAnalysis = await step.run('analyze-match-with-llm', async () => {
       console.log(`Analyzing match with LLM for invoice ${invoice_id}`);
-      return await MatchingService.analyzeMatchWithLLM(docs);
+      return await MatchingService.analyzeMatchWithLLM(docs.docs);
     });
 
-    console.log(`LLM Analysis: matched=${llmAnalysis.matched}, confidence=${llmAnalysis.confidence}`);
+    console.log(
+      `LLM Analysis: matched=${llmAnalysis.matched}, confidence=${llmAnalysis.confidence}`
+    );
 
     // Step 3: Save matching result
     const matchingResult = await step.run('save-matching-result', async () => {
       console.log(`Saving matching result for invoice ${invoice_id}`);
-      return await MatchingService.saveMatchingResult(docs, llmAnalysis);
+      return await MatchingService.saveMatchingResult(
+        docs.docs,
+        llmAnalysis,
+        docs.fuzzyMatchData
+      );
     });
 
     console.log(`Matching result saved with ID ${matchingResult.id}`);
@@ -51,10 +61,12 @@ export const runMatchingJob = inngestClient.createFunction(
     // Step 4: Update document statuses
     await step.run('update-document-statuses', async () => {
       console.log(`Updating document statuses for invoice ${invoice_id}`);
-      await MatchingService.updateDocumentStatuses(docs, llmAnalysis);
+      await MatchingService.updateDocumentStatuses(docs.docs, llmAnalysis);
     });
 
-    console.log(`Document statuses updated. Match completed for invoice ${invoice_id}`);
+    console.log(
+      `Document statuses updated. Match completed for invoice ${invoice_id}`
+    );
 
     return {
       success: true,

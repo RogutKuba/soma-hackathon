@@ -13,6 +13,10 @@ export interface MatchingResult {
     | 'major_variance'
     | 'no_match';
   confidence_score: number;
+  // Fuzzy matching metadata
+  po_number_match_type: 'exact' | 'fuzzy' | 'manual';
+  fuzzy_match_confidence: number | null;
+  fuzzy_match_reasoning: string | null;
   comparison: {
     po_total: number;
     bol_total?: number;
@@ -27,6 +31,12 @@ export interface MatchingResult {
       status: 'match' | 'variance' | 'missing' | 'extra';
     }>;
     llm_reasoning?: string;
+    // Fuzzy match details
+    po_number_mismatch?: {
+      invoice_po: string;
+      matched_po: string;
+      reason: string;
+    };
   };
   flags_count: number;
   high_severity_flags: number;

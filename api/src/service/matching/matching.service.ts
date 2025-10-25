@@ -17,6 +17,7 @@ import { eq } from 'drizzle-orm';
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import Elysia from 'elysia';
+import { FuzzyMatcherService } from './fuzzy-matcher.service';
 
 /**
  * Documents required for 3-way matching
@@ -46,6 +47,18 @@ interface LLMMatchingAnalysis {
 }
 
 /**
+ * Fuzzy match metadata
+ */
+interface FuzzyMatchData {
+  po_match_type: 'exact' | 'fuzzy';
+  po_confidence?: number;
+  po_reasoning?: string;
+  bol_match_type: 'exact' | 'fuzzy' | 'missing';
+  bol_confidence?: number;
+  bol_reasoning?: string;
+}
+
+/**
  * 3-Way Matching Service
  *
  * Performs comprehensive matching across Purchase Orders, Bills of Lading, and Invoices:
@@ -58,10 +71,14 @@ interface LLMMatchingAnalysis {
 export abstract class MatchingService {
   /**
    * Phase 1: Fetch related documents by PO number from invoice
+   * Now supports fuzzy matching when exact PO number match fails
    */
   static async fetchRelatedDocuments(
     invoiceId: Id<'inv'>
-  ): Promise<MatchingDocuments | null> {
+  ): Promise<{
+    docs: MatchingDocuments;
+    fuzzyMatchData?: FuzzyMatchData;
+  } | null> {
     // Get invoice
     const [invoice] = await db
       .select()
@@ -72,27 +89,87 @@ export abstract class MatchingService {
       throw new Error(`Invoice ${invoiceId} not found`);
     }
 
-    // Get PO by po_number (required field now)
-    const [po] = await db
+    let po: POEntity | null = null;
+    let fuzzyMatchData: Partial<FuzzyMatchData> = {};
+
+    // Try exact PO match first
+    const [exactPO] = await db
       .select()
       .from(purchaseOrdersTable)
       .where(eq(purchaseOrdersTable.po_number, invoice.po_number));
 
-    if (!po) {
-      // No PO found - cannot match
-      return null;
+    if (exactPO) {
+      po = exactPO;
+      fuzzyMatchData.po_match_type = 'exact';
+      console.log(`✓ Exact PO match found: ${po.po_number}`);
+    } else {
+      // FUZZY MATCHING: Try to find similar PO
+      console.log(
+        `✗ No exact PO match for "${invoice.po_number}", trying fuzzy match...`
+      );
+
+      const fuzzyPOResult = await FuzzyMatcherService.findMatchingPO(invoice);
+
+      if (fuzzyPOResult) {
+        po = fuzzyPOResult.po;
+        fuzzyMatchData.po_match_type = 'fuzzy';
+        fuzzyMatchData.po_confidence = fuzzyPOResult.confidence;
+        fuzzyMatchData.po_reasoning = fuzzyPOResult.reasoning;
+
+        console.log(
+          `✓ Fuzzy matched PO: ${po.po_number} (confidence: ${(fuzzyPOResult.confidence * 100).toFixed(0)}%)`
+        );
+      } else {
+        // No PO found - cannot match
+        console.log('✗ No PO found even with fuzzy matching');
+        return null;
+      }
     }
 
-    // Get BOL by po_number
-    const [bol] = await db
+    // Try exact BOL match first
+    let bol: BillOfLadingEntity | null = null;
+    const [exactBOL] = await db
       .select()
       .from(billsOfLadingTable)
-      .where(eq(billsOfLadingTable.po_number, invoice.po_number));
+      .where(eq(billsOfLadingTable.po_number, po.po_number));
+
+    if (exactBOL) {
+      bol = exactBOL;
+      fuzzyMatchData.bol_match_type = 'exact';
+      console.log(`✓ Exact BOL match found: ${bol.bol_number}`);
+    } else {
+      // FUZZY MATCHING: Try to find similar BOL
+      console.log(
+        `✗ No exact BOL match for PO "${po.po_number}", trying fuzzy match...`
+      );
+
+      const fuzzyBOLResult = await FuzzyMatcherService.findMatchingBOL(
+        po,
+        invoice
+      );
+
+      if (fuzzyBOLResult) {
+        bol = fuzzyBOLResult.bol;
+        fuzzyMatchData.bol_match_type = 'fuzzy';
+        fuzzyMatchData.bol_confidence = fuzzyBOLResult.confidence;
+        fuzzyMatchData.bol_reasoning = fuzzyBOLResult.reasoning;
+
+        console.log(
+          `✓ Fuzzy matched BOL: ${bol.bol_number} (confidence: ${(fuzzyBOLResult.confidence * 100).toFixed(0)}%)`
+        );
+      } else {
+        fuzzyMatchData.bol_match_type = 'missing';
+        console.log('✗ No BOL found (will proceed with 2-way match)');
+      }
+    }
 
     return {
-      po,
-      bol: bol || null,
-      invoice,
+      docs: {
+        po,
+        bol,
+        invoice,
+      },
+      fuzzyMatchData: fuzzyMatchData as FuzzyMatchData,
     };
   }
 
@@ -218,7 +295,8 @@ Return ONLY valid JSON, no markdown formatting.`;
    */
   static async saveMatchingResult(
     docs: MatchingDocuments,
-    llmAnalysis: LLMMatchingAnalysis
+    llmAnalysis: LLMMatchingAnalysis,
+    fuzzyMatchData?: FuzzyMatchData
   ): Promise<MatchingResultEntity> {
     // Helper to safely convert to string
     const toStringOrNull = (val: string | number | undefined): string | null => {
@@ -279,6 +357,10 @@ Return ONLY valid JSON, no markdown formatting.`;
       invoice_id: docs.invoice.id,
       match_status: llmAnalysis.matched ? 'perfect_match' : 'major_variance',
       confidence_score: llmAnalysis.confidence,
+      // Fuzzy matching metadata
+      po_number_match_type: fuzzyMatchData?.po_match_type || 'exact',
+      fuzzy_match_confidence: fuzzyMatchData?.po_confidence || null,
+      fuzzy_match_reasoning: fuzzyMatchData?.po_reasoning || null,
       comparison: {
         po_total: docs.po.total_amount,
         bol_total: docs.bol?.actual_charges?.reduce(
@@ -289,6 +371,16 @@ Return ONLY valid JSON, no markdown formatting.`;
         variance: llmAnalysis.variance_amount,
         variance_pct: llmAnalysis.variance_percentage,
         charge_comparison: chargeComparison,
+        llm_reasoning: llmAnalysis.reasoning,
+        // Fuzzy match details
+        po_number_mismatch:
+          fuzzyMatchData?.po_match_type === 'fuzzy'
+            ? {
+                invoice_po: docs.invoice.po_number,
+                matched_po: docs.po.po_number,
+                reason: fuzzyMatchData.po_reasoning || '',
+              }
+            : undefined,
       },
       flags_count: llmAnalysis.discrepancies.length,
       high_severity_flags: llmAnalysis.discrepancies.filter((d) =>
@@ -376,32 +468,41 @@ Return ONLY valid JSON, no markdown formatting.`;
    * Main entry point: Run 3-way matching
    *
    * Uses LLM to analyze if documents match and provide reasoning
+   * Supports fuzzy matching when exact PO number match fails
    */
   static async runThreeWayMatch(invoiceId: Id<'inv'>): Promise<{
     success: boolean;
     matched: boolean;
     result: MatchingResultEntity | null;
     llm_analysis?: LLMMatchingAnalysis;
+    fuzzy_match_used?: boolean;
     error?: string;
   }> {
     try {
-      // Phase 1: Fetch documents linked by PO number
-      const docs = await this.fetchRelatedDocuments(invoiceId);
+      // Phase 1: Fetch documents (with fuzzy matching support)
+      const fetchResult = await this.fetchRelatedDocuments(invoiceId);
 
-      if (!docs) {
+      if (!fetchResult) {
         return {
           success: false,
           matched: false,
           result: null,
-          error: 'Could not find related PO for invoice',
+          error:
+            'Could not find related PO for invoice (even with fuzzy matching)',
         };
       }
+
+      const { docs, fuzzyMatchData } = fetchResult;
 
       // Phase 2: Use LLM to analyze the match
       const llmAnalysis = await this.analyzeMatchWithLLM(docs);
 
-      // Phase 3: Save matching result with LLM analysis
-      const matchingResult = await this.saveMatchingResult(docs, llmAnalysis);
+      // Phase 3: Save matching result with fuzzy match metadata
+      const matchingResult = await this.saveMatchingResult(
+        docs,
+        llmAnalysis,
+        fuzzyMatchData
+      );
 
       // Phase 4: Update document statuses based on LLM decision
       await this.updateDocumentStatuses(docs, llmAnalysis);
@@ -411,6 +512,7 @@ Return ONLY valid JSON, no markdown formatting.`;
         matched: llmAnalysis.matched,
         result: matchingResult,
         llm_analysis: llmAnalysis,
+        fuzzy_match_used: fuzzyMatchData?.po_match_type === 'fuzzy',
       };
     } catch (error) {
       console.error('Error in 3-way matching:', error);
